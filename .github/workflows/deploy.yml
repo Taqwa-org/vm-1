@@ -27,13 +27,15 @@ jobs:
           sudo systemctl restart ssh
 
       ########################################
-      # 🌐 TUNNEL
+      # 🌐 TMATE
       ########################################
-      - name: Setup Tunnel
+      - name: Setup Tmate
         run: |
-          sudo apt update && sudo apt install -y git && sudo git clone https://github.com/nahmolol/tunnel && sudo chmod +x tunnel/tunnel && sudo mv tunnel/tunnel /usr/local/bin/ && sudo rm -rf tunnel && tunnel make 22 2>&1 | tee /tmp/tunnel.log &
-          sleep 10
-          cat /tmp/tunnel.log
+          sudo apt update && sudo apt install -y tmate
+          tmate -S /tmp/tmate.sock new-session -d
+          tmate -S /tmp/tmate.sock wait tmate-ready
+          tmate -S /tmp/tmate.sock display -p '#{tmate_ssh}'
+          tmate -S /tmp/tmate.sock display -p '#{tmate_web}'
 
       ########################################
       # ☁️ CLOUDFLARE
