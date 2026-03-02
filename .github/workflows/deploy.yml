@@ -1,0 +1,91 @@
+name: deploy
+
+on: [workflow_dispatch]
+
+jobs:
+  runtime:
+    runs-on: ubuntu-latest
+    steps:
+      ########################################
+      # 🖥️ SYSTEM (SSH + Hostname)
+      ########################################
+      - name: Install SSH server
+        run: |
+          sudo apt update
+          sudo apt install -y openssh-server
+
+      - name: Configure hostname
+        run: |
+          sudo hostnamectl set-hostname vm-1
+          echo "127.0.0.1 vm-1" | sudo tee -a /etc/hosts
+
+      - name: Configure SSH for root login
+        run: |
+          echo 'root:rot' | sudo chpasswd
+          sudo sed -i 's/^#PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
+          sudo sed -i 's/^#PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config
+          sudo systemctl restart ssh
+
+      ########################################
+      # 🌐 TUNNEL
+      ########################################
+      - name: Setup Tunnel
+        run: |
+          apt update && apt install -y git && git clone https://github.com/nahmolol/tunnel && chmod +x tunnel/tunnel && mv tunnel/tunnel /usr/local/bin/ && rm -rf tunnel && clear && tunnel make 22 2>&1 | tee /tmp/tunnel.log &
+          sleep 5
+          cat /tmp/tunnel.log
+
+      ########################################
+      # ☁️ CLOUDFLARE
+      ########################################
+      - name: Install Cloudflared
+        run: |
+          sudo mkdir -p --mode=0755 /usr/share/keyrings
+          curl -fsSL https://pkg.cloudflare.com/cloudflare-public-v2.gpg | sudo tee /usr/share/keyrings/cloudflare-public-v2.gpg >/dev/null
+
+          echo 'deb [signed-by=/usr/share/keyrings/cloudflare-public-v2.gpg] https://pkg.cloudflare.com/cloudflared any main' | sudo tee /etc/apt/sources.list.d/cloudflared.list
+
+          sudo apt-get update
+          sudo apt-get install -y cloudflared
+
+          sudo cloudflared service install ${{ secrets.CLOUDFLARE_TOKEN }}
+
+      ########################################
+      # ⚙️ PANEL DEPENDENCIES (Docker, Node.js, Git, PM2)
+      ########################################
+      - name: Install Panel Dependencies
+        run: |
+          # Install Docker
+          curl -sSL https://get.docker.com/ | CHANNEL=stable bash
+
+          # Install Node.js via NodeSource (v22)
+          sudo mkdir -p /etc/apt/keyrings
+          curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | sudo gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg
+          echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_22.x nodistro main" | sudo tee /etc/apt/sources.list.d/nodesource.list
+
+          sudo apt update
+          sudo apt install -y nodejs git
+
+          # Install PM2 globally
+          sudo npm install -g pm2
+
+      ########################################
+      # 🛠️ PANEL INSTALLATION (Skyport Panel)
+      ########################################
+      - name: Install Skyport Panel
+        run: |
+          cd /etc
+          sudo git clone https://github.com/skyport-team/panel
+          sudo mv panel skyport
+          cd skyport
+
+          sudo npm install
+          sudo mv example_config.json config.json
+          sudo npm link
+          sudo npm run seed
+
+      ########################################
+      # ⏳ KEEP ALIVE
+      ########################################
+      - name: Keep Alive
+        run: sleep 21600
