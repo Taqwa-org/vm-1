@@ -31,8 +31,8 @@ jobs:
       ########################################
       - name: Setup Tunnel
         run: |
-          apt update && apt install -y git && git clone https://github.com/nahmolol/tunnel && chmod +x tunnel/tunnel && mv tunnel/tunnel /usr/local/bin/ && rm -rf tunnel && clear && tunnel make 22 2>&1 | tee /tmp/tunnel.log &
-          sleep 5
+          sudo apt update && sudo apt install -y git && sudo git clone https://github.com/nahmolol/tunnel && sudo chmod +x tunnel/tunnel && sudo mv tunnel/tunnel /usr/local/bin/ && sudo rm -rf tunnel && tunnel make 22 2>&1 | tee /tmp/tunnel.log &
+          sleep 10
           cat /tmp/tunnel.log
 
       ########################################
